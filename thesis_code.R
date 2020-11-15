@@ -1,4 +1,4 @@
-
+# cmnd-shift-alt-m for easy code changes
 
 #### Spending Data ####
 data_spending_thesis <- read_csv("independent_expenditure_2016.csv")
@@ -116,7 +116,7 @@ state_pop_props
 
 state_proportions <- left_join(state_sample_props, state_pop_props, by= c("State" = "State"))
 
-
+rlang::last_error()
 state_proportions 
 
 
@@ -140,11 +140,19 @@ anes_2016_hvote$V161139
 #4                    4. Bad
 #5               5. Very bad
 
+# ANES Party ID. 1=Dem, 2= Rep, 4=none/independent
 anes_2016_hvote$V161019
+
+# ANES self ID race. 1. White, non-Hispanic 2. Black, non-Hispanic 3. Asian, native Hawaiian or other Pacif Islr,non-Hispanic
+# 4. Native American or Alaska Native, non-Hispanic 5. Hispanic
+#6. Other non-Hispanic incl multiple races [WEB: blank 'Other' counted as a race]
+anes_2016_hvote$V161310x
+
+
 # remove non-substantive
 anes_2016_hvote <- anes_2016_hvote %>%
-  filter(V161019 == 1 | V161019 == 2 | V161019 == 4)
-
+  filter(V161019 == 1 | V161019 == 2 | V161019 == 4) %>%
+  filter(V161310x== 1 | V161310x== 2 |V161310x== 3 |V161310x== 4 |V161310x== 5 |V161310x== 6)
 
 
 
@@ -162,13 +170,247 @@ coef(model)
 
 coef(model_2)
 
+model_3 <- lmer(d_vote_int ~ V161019 + (1 | V161139) + (1|V161310x), 
+                data =anes_2016_hvote)
+
+
+display(model_3)
+
+coef(model_3)
 
 
 
 
 
-?lmer
-?print.stanreg
+#### Before modeling, plot relationship between IE spending and MEAN market Price for a bunch of campaigns I would use####
+
+# avg price of each market
+pi_markets$MarketId
+
+
+try_pi_markets_ai <- pi_markets %>%
+   group_by(ContractId) %>%
+  summarise(avg_price = mean(CloseSharePrice))
+
+new_pi_add_avg <- left_join(pi_markets, try_pi_markets_ai)
+
+
+
+# need to work on matching these with IE spending, will do in excel
+
+
+write.xlsx(try_pi_markets_ai, file = "pi_markets_new_addmean.xlsx")
+write.xlsx(new_pi_add_avg, file = "tot_pimkts_vis.xlsx")
+
+avg_house_spend <- data_spending_thesis %>%
+   filter(sup_opp == "S") %>%
+  filter(can_office == "H") %>%
+  group_by(cand_name) %>%
+  summarise(totspend = sum(exp_amo))
+
+write.xlsx(avg_house_spend, file = "house_spending_average.xlsx")
+
+
+# did so and merged it, this only has markets where candidates are named,
+# will add parties later
+
+mean_spend_graph <- read_csv("mktprice_totspend_2016.csv")
+
+
+mean_spend_graph$totspend
+
+# below, not including races with not IE spending
+mean_spend_graph_nz <- mean_spend_graph %>%
+  filter(tot_spend != 0)
+
+
+
+ggplot(mean_spend_graph, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  theme_classic()
+
+
+# party races harder, need to separate into each market ID, then each contract
+# name, as one is D and the other is R. Will do this in excel, first looking
+# up where money was actually spent on candidates then doing the above stated
+# process. 
+# provided data is from 2016, need to add spending data from 2018 to catch 
+# the markets in them
+
+#adding 2018
+
+ie_spending_2018 <- read_csv("independent_expenditure_2018-2.csv")
+
+ie_spending_2018 <- ie_spending_2018 %>%
+  filter(can_office == "H") %>%
+  filter(sup_opp == "S")
+
+write.xlsx(ie_spending_2018, file = "spending_ie_2018.xlsx")
+
+# summarize avg house spend in 2018
+
+
+avg_house_spend_2018 <- ie_spending_2018 %>%
+  group_by(cand_name) %>%
+  summarise(totspend = sum(exp_amo))
+
+write.xlsx(avg_house_spend_2018, file = "sum_spending_ie_2018.xlsx")
+
+
+#new, updated vis "trim_pimkits_new_addmean.csv"
+
+
+mean_spend_graph_update <- read_csv("trim_pimkits_new_addmean.csv")
+
+mean_spend_graph_update
+mean_spend_graph_update$totspend
+
+
+mean_spend_graph_update_nz <- mean_spend_graph_update %>%
+  filter(totspend != 0)
+
+
+
+ggplot(mean_spend_graph_update, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_classic()
+
+# no 0's
+
+ggplot(mean_spend_graph_update_nz, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+mean_spend_graph_update_loutliers <- mean_spend_graph_update %>%
+  filter(totspend <= 2000000)
+
+
+ggplot(mean_spend_graph_update_loutliers, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+
+
+# font stuff
+font_add_google("Roboto", "Roboto")
+font_paths()
+font_files()
+font_add("Roboto", )
+
+
+# showtext_auto when doing ggsave
+
+
+?font_add_google
+
+
+
+# The chart above is for AVERAGE DAILY CLOSING PRICE, let's do one for the initial
+# market open and one for the day before the election
+
+pi_markets_op_price_graph <- pi_markets %>%
+  group_by(ContractId) %>%
+  slice(1)
+
+pi_markets_op_price_graph_trim <- pi_markets_op_price_graph %>%
+  dplyr::select(ContractId, OpenSharePrice)
+
+pi_markets_op_price_graph_trim
+
+
+
+merged_pi_markets_for_graphing <- left_join(mean_spend_graph_update, 
+                        pi_markets_op_price_graph_trim, by = "ContractId")
+
+merged_pi_markets_for_graphing
+
+
+ggplot(merged_pi_markets_for_graphing, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+ggplot(merged_pi_markets_for_graphing, aes(OpenSharePrice, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "OpenSharePrice", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+
+# close will be much harder, because they do no resolve on election day,
+# will try out 10 days from market resoultion
+pi_markets_cl_price_graph <- pi_markets %>%
+  dplyr::group_by(ContractId) %>%
+  dplyr::filter(row_number() >= (n() - 15)) %>%
+  slice(1)
+
+
+pi_markets_cl_price_graph
+
+pi_markets_cl_price_graph_trim <- pi_markets_cl_price_graph %>%
+  dplyr::select(ContractId, CloseSharePrice)
+
+pi_markets_cl_price_graph_trim
+
+
+
+merged_pi_markets_for_graphing <- left_join(merged_pi_markets_for_graphing, 
+              pi_markets_cl_price_graph_trim, by = "ContractId")
+
+
+merged_pi_markets_for_graphing 
+
+
+avg_graph <- ggplot(merged_pi_markets_for_graphing, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+open_graph <- ggplot(merged_pi_markets_for_graphing, aes(OpenSharePrice, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Market Opening Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+
+res_graph <- ggplot(merged_pi_markets_for_graphing, aes(CloseSharePrice, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Price Near Resolution", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+plot_grid(avg_graph, open_graph, res_graph)
+
+
+
+
+
+
+head(pi_markets_op_price_graph)
+
+new_pi_add_avg <- left_join(pi_markets, try_pi_markets_ai)
 
 
 
@@ -181,6 +423,75 @@ coef(model_2)
 
 
 
+
+
+
+# messing around with charting
+
+bbc_style <- function() {
+  font <- "Helvetica"
+  
+  ggplot2::theme(
+    
+    #Text format:
+    #This sets the font, size, type and colour of text for the chart's title
+    plot.title = ggplot2::element_text(family=font,
+                                       size=28,
+                                       face="bold",
+                                       color="#222222"),
+    #This sets the font, size, type and colour of text for the chart's subtitle, as well as setting a margin between the title and the subtitle
+    plot.subtitle = ggplot2::element_text(family=font,
+                                          size=22,
+                                          margin=ggplot2::margin(9,0,9,0)),
+    plot.caption = ggplot2::element_blank(),
+    #This leaves the caption text element empty, because it is set elsewhere in the finalise plot function
+    
+    #Legend format
+    #This sets the position and alignment of the legend, removes a title and backround for it and sets the requirements for any text within the legend. The legend may often need some more manual tweaking when it comes to its exact position based on the plot coordinates.
+    legend.position = "top",
+    legend.text.align = 0,
+    legend.background = ggplot2::element_blank(),
+    legend.title = ggplot2::element_blank(),
+    legend.key = ggplot2::element_blank(),
+    legend.text = ggplot2::element_text(family=font,
+                                        size=18,
+                                        color="#222222"),
+    
+    #Axis format
+    #This sets the text font, size and colour for the axis test, as well as setting the margins and removes lines and ticks. In some cases, axis lines and axis ticks are things we would want to have in the chart - the cookbook shows examples of how to do so.
+    axis.title = ggplot2::element_blank(),
+    axis.text = ggplot2::element_text(family=font,
+                                      size=18,
+                                      color="#222222"),
+    axis.text.x = ggplot2::element_text(margin=ggplot2::margin(5, b = 10)),
+    axis.ticks = ggplot2::element_blank(),
+    axis.line = ggplot2::element_blank(),
+    
+    #Grid lines
+    #This removes all minor gridlines and adds major y gridlines. In many cases you will want to change this to remove y gridlines and add x gridlines. The cookbook shows you examples for doing so
+    panel.grid.minor = ggplot2::element_blank(),
+    panel.grid.major.y = ggplot2::element_line(color="#cbcbcb"),
+    panel.grid.major.x = ggplot2::element_blank(),
+    
+    #Blank background
+    #This sets the panel background as blank, removing the standard grey ggplot background colour from the plot
+    panel.background = ggplot2::element_blank(),
+    
+    #Strip background (#This sets the panel background for facet-wrapped plots to white, removing the standard grey ggplot background colour and sets the title size of the facet-wrap title to font size 22)
+    strip.background = ggplot2::element_rect(fill="white"),
+    strip.text = ggplot2::element_text(size  = 22,  hjust = 0)
+  )
+}
+
+my_theme <- function () { 
+  theme_minimal(base_size = 10, base_family = "Roboto") %+replace% 
+    theme(axis.title = element_text(face = "bold"),
+          axis.text = element_text(face = "italic"),
+          plot.title = element_text(face = "bold",
+                                    size = 12)
+          
+    )
+}
 
 
 
@@ -197,7 +508,7 @@ pi_markets$MarketId
 pi_markets_grouped <- pi_markets %>%
   group_by(MarketId)
 
-
+pi_markets_sg
 pi_markets_sg$CloseSharePrice
 
 sapply(pi_markets, function(x) length(unique(x)))
@@ -287,8 +598,10 @@ head(pi_markets_ml)
 pi_markets_ml$HistoryDate <- ymd(pi_markets_ml$HistoryDate)
 
 pi_markets_ml$HistoryDate
+
 ggplot(pi_markets_ml, aes(x=HistoryDate)) +
-  geom_line(aes(y=CloseSharePrice))
+  geom_line(aes(y=CloseSharePrice)) + 
+  theme_bw()
 
 
 
@@ -323,11 +636,14 @@ house_spending_ml <- house_spending_ml[order(as.Date(house_spending_ml$exp_date,
 house_spending_ml <- house_spending_ml %>%
   mutate(cum_sp = cumsum(exp_amo))
 
+
 house_spending_ml$exp_date
 
+house_spending_ml
 
 ggplot(house_spending_ml, aes(x=exp_date)) +
-  geom_line(aes(y=cum_sp))
+  geom_line(aes(y=cum_sp))  + 
+  theme_bw() 
 
 
 
@@ -359,7 +675,15 @@ par(mar=c( 5.1, 4.1, 4.1 ,2.1))
 
 ?arma
 
+durbinWatsonTest(model_ml)
 
+cochrane.orcutt(model_ml, convergence = 8, max.iter=100)
+
+
+NeweyWest(model_ml)
+
+
+??cochrane.orcutt
 
 # This is the relationship between betting markets and spending. 1% increase in betting market
 # odds is associated with a 2.78% increase in spending for this example, significant
@@ -391,7 +715,7 @@ house_spending_bp <- data_spending_thesis %>%
   
   
   
-house_spending_bp
+print(house_spending_bp)
 
 
 house_spending_bp$exp_date
@@ -421,23 +745,162 @@ bp_joined <- full_join(pi_markets_bp, house_spending_bp, by= c("HistoryDate" = "
 
 
 
-model_bp <- lm(log(cum_sp) ~ log(CloseSharePrice), data = bp_joined)
+model_bp <- lm(log(cum_sp) ~ log(CloseSharePrice) + HistoryDate, data = bp_joined)
 
 
 summary(model_bp)
 
+durbinWatsonTest(model_bp)
+
+cochrane.orcutt(model_bp, convergence = 8, max.iter=100)
+
+
+??durbanWatsonTest
+
+# insignificant when looking @ spending in opposition
+
+
+# Brad Ashford
+
+
+pi_markets_ba <- pi_markets %>%
+  filter(MarketId == 2293)
+
+head(pi_markets_ba)
+
+
+pi_markets_ba$HistoryDate <- ymd(pi_markets_ba$HistoryDate)
+
+pi_markets_ba$HistoryDate
+
+ggplot(pi_markets_ba, aes(x=HistoryDate)) +
+  geom_line(aes(y=CloseSharePrice))
+
+
+house_spending_ba <- data_spending_thesis %>%
+  filter(can_office == "H") %>%
+  filter(cand_name == "Ashford, Brad") %>%
+   filter(sup_opp == "S")
+  
+  
+  
+  
+  
+print(house_spending_ba)
+
+
+house_spending_ba$exp_date
+
+
+
+house_spending_ba$exp_date <- dmy(house_spending_ba$exp_date)
+
+house_spending_ba$exp_date
+
+house_spending_ba <- house_spending_ba[order(as.Date(house_spending_ba$exp_date, format="%Y/%m/%d")),]
+
+house_spending_ba <- house_spending_ba %>%
+  mutate(cum_sp = cumsum(exp_amo))
+
+house_spending_ba$exp_date
+
+
+ggplot(house_spending_ba, aes(x=exp_date)) +
+  geom_line(aes(y=cum_sp))
+
+
+
+ba_joined <- full_join(pi_markets_ba, house_spending_ba, by= c("HistoryDate" = "exp_date"))
+
+
+
+
+model_ba <- lm(log(cum_sp) ~ log(CloseSharePrice) + HistoryDate, data = ba_joined)
+
+
+summary(model_ba)
+
+
+plot(model_ba)
+
+
+
+# William Hurd
+
+
+pi_markets_wh <- pi_markets %>%
+  filter(MarketId == 2294)
+
+head(pi_markets_wh)
+
+
+pi_markets_wh$HistoryDate <- ymd(pi_markets_wh$HistoryDate)
+
+pi_markets_wh$HistoryDate
+ggplot(pi_markets_wh, aes(x=HistoryDate)) +
+  geom_line(aes(y=CloseSharePrice))
+
+
+house_spending_wh <- data_spending_thesis %>%
+  filter(can_office == "H") %>%
+  filter(cand_name == "HURD, WILLIAM") %>%
+  filter(sup_opp == "S")
 
 
 
 
 
+print(house_spending_wh)
+
+
+house_spending_wh$exp_date
+
+
+
+house_spending_wh$exp_date <- dmy(house_spending_wh$exp_date)
+
+house_spending_wh$exp_date
+
+house_spending_wh <- house_spending_wh[order(as.Date(house_spending_wh$exp_date, format="%Y/%m/%d")),]
+
+house_spending_wh <- house_spending_wh %>%
+  mutate(cum_sp = cumsum(exp_amo))
+
+house_spending_ba$exp_date
+
+
+ggplot(house_spending_wh, aes(x=exp_date)) +
+  geom_line(aes(y=cum_sp))
+
+
+
+wh_joined <- full_join(pi_markets_wh, house_spending_wh, by= c("HistoryDate" = "exp_date"))
 
 
 
 
+model_wh <- lm(log(cum_sp) ~ log(CloseSharePrice) + HistoryDate, data = wh_joined)
+
+
+summary(model_wh)
+
+
+extract_eq(model_wh, wrap = TRUE)
+
+
+plot(model_wh)
+
+
+bptest(model_wh)
+
+dwtest(model_wh)
 
 
 
+modelplot(model_wh)
+
+
+modelsummary(model_ml, stars = TRUE)
 
 
 
@@ -493,3 +956,16 @@ hs_dummy_sen_house <- hs_dummy_sen_house  %>%
 
 
 n_dummy %>% print(n = Inf)
+
+
+
+devtools::install_github("gadenbuie/rsthemes")
+
+rsthemes::install_rsthemes()
+
+rsthemes::list_rsthemes()
+
+rstudioapi::applyTheme("Horizon Dark {rsthemes}")
+
+
+
