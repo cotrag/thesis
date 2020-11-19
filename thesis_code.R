@@ -216,7 +216,6 @@ write.xlsx(avg_house_spend, file = "house_spending_average.xlsx")
 
 mean_spend_graph <- read_csv("mktprice_totspend_2016.csv")
 
-
 mean_spend_graph$totspend
 
 # below, not including races with not IE spending
@@ -324,6 +323,13 @@ pi_markets_op_price_graph <- pi_markets %>%
   group_by(ContractId) %>%
   slice(1)
 
+
+pi_markets_op_price_graph
+
+write.xlsx(pi_markets_op_price_graph, file = "add_year_to_graphing.xlsx")
+
+
+
 pi_markets_op_price_graph_trim <- pi_markets_op_price_graph %>%
   dplyr::select(ContractId, OpenSharePrice)
 
@@ -399,7 +405,6 @@ res_graph <- ggplot(merged_pi_markets_for_graphing, aes(CloseSharePrice, totspen
   labs(x= "Price Near Resolution", y= "Total IE Supporting Candidate") +
   scale_y_continuous(labels = scales::comma) +
   theme_gray()
-
 
 plot_grid(avg_graph, open_graph, res_graph)
 
@@ -492,6 +497,188 @@ my_theme <- function () {
           
     )
 }
+
+#### Now Let's Add Prev Pres Vote Share in the CD to see if it Tracks at all ####
+
+merged_pi_markets_for_graphing$name
+
+write.xlsx(merged_pi_markets_for_graphing, file = "merged_pi_markets_for_graphing_2.xlsx")
+
+
+# use Daily Kos, need to tease out 2016 vs. 2018 elections because some districts
+# changed, test for right now though
+
+pres_election_results <- read_csv("Daily Kos Elections 2008, 2012 & 2016 presidential election results for congressional districts used in 2016 elections - Results.csv")
+
+head(pres_election_results)
+
+pres_election_results$Incumbent
+
+pres_election_results$Incumbent <- str_replace_all(pres_election_results$Incumbent, ",","")
+
+
+pres_election_results$Incumbent
+
+write.xlsx(pres_election_results, "pres_election_results.xlsx")
+
+# flipped strings in excel
+
+pres_election_results <- read.xlsx("pres_election_results.xlsx")
+
+
+pres_election_results 
+
+merged_pi_markets_for_graphing_add_pres <- left_join(merged_pi_markets_for_graphing, pres_election_results,
+                                                     by = c("name" = "Incumbent"))
+
+
+merged_pi_markets_for_graphing_add_pres
+
+# go into excel to fix issues of NAs, also add year variables
+
+write.xlsx(merged_pi_markets_for_graphing_add_pres, file = "merged_pi_markets_for_graphing_add_pres.xlsx")
+
+# the first merge was for 2016 CDs, cleared the 2018s that were filled in error
+# and doing the same with DK 2018 dataset
+
+merged_pi_markets_for_graphing_add_pres <- read.xlsx("merged_pi_markets_for_graphing_add_pres.xlsx")
+
+
+merged_pi_markets_for_graphing_add_pres$Year_contract
+
+pres_election_results_for_2018 <- read_csv("Daily Kos Elections 2008, 2012 & 2016 presidential election results for congressional districts used in 2018 elections - Results.csv")
+
+
+pres_election_results_for_2018$Incumbent
+
+
+pres_election_results_for_2018$Incumbent <- str_replace_all(pres_election_results_for_2018$Incumbent, ",","")
+
+pres_election_results_for_2018$Incumbent
+
+write.xlsx(pres_election_results_for_2018, "pres_election_results_for_2018.xlsx")
+
+pres_election_results_for_2018 <- read.xlsx("pres_election_results_for_2018.xlsx")
+
+
+# add this to the larger list after subsetting that list for 2018 only, then copy
+# into the list using excel
+add_for_2018_only <- merged_pi_markets_for_graphing_add_pres %>%
+  filter(Year_contract == 2018)
+
+add_for_2018_only
+
+merged_pi_markets_for_graphing_add_pres_2018 <- left_join(add_for_2018_only, pres_election_results_for_2018,
+                                                          by = c("name" = "Incumbent"))
+
+write.xlsx(merged_pi_markets_for_graphing_add_pres_2018,
+           file = "merged_pi_markets_for_graphing_add_pres_2018.xlsx")
+
+
+
+# Just hand added results that did not automatically merge, final copy is below
+
+
+results_for_graphing_add_pres <- read.xlsx("merged_pi_markets_for_graphing_add_pres.xlsx")
+
+head(results_for_graphing_add_pres)
+
+
+
+
+
+
+
+
+
+results_for_graphing_add_pres$d_vote_share <- results_for_graphing_add_pres$Clinton - results_for_graphing_add_pres$Trump
+
+results_for_graphing_add_pres$d_vote_share
+
+
+results_for_graphing_add_pres$vs_in_favor_of_cand_party <- ifelse(results_for_graphing_add_pres$d_vote_share > 0, results_for_graphing_add_pres$Clinton - results_for_graphing_add_pres$Trump,
+                                                    results_for_graphing_add_pres$Trump - results_for_graphing_add_pres$Clinton)
+
+results_for_graphing_add_pres$vs_in_favor_of_cand_party 
+
+
+
+results_for_graphing_add_pres <- results_for_graphing_add_pres %>%
+  dplyr::mutate(pres_party_dif = )
+
+
+
+
+
+ggplot(results_for_graphing_add_pres, aes(CloseSharePrice, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Price Near Resolution", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+ggplot(results_for_graphing_add_pres, aes(CloseSharePrice, totspend, colour = cand_party)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Price Near Resolution", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()+ 
+  scale_color_manual(values=c("blue2", "red2"))
+
+ggplot(results_for_graphing_add_pres, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+ggplot(results_for_graphing_add_pres, aes(avg_price, totspend, fill = cand_party, colour = cand_party)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()+ 
+  scale_color_manual(values=c("blue2", "red2")) +
+  scale_fill_manual(values=c("blue2", "red2"))
+
+
+
+
+
+
+
+
+ggplot(results_for_graphing_add_pres, aes(vs_in_favor_of_cand_party , totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Price Near Resolution", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+# huge outlers on that graph, filter to reign them in
+
+remoove_outlier_results_for_graphing_add_pres <- results_for_graphing_add_pres %>%
+  dplyr::filter(vs_in_favor_of_cand_party < 25)
+
+ggplot(remoove_outlier_results_for_graphing_add_pres, aes(vs_in_favor_of_cand_party , totspend, colour = cand_party)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Price Near Resolution", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+ggplot(remoove_outlier_results_for_graphing_add_pres, aes(d_vote_share, totspend, fill = cand_party, colour = cand_party)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "D Vote Share", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray() + 
+  scale_color_manual(values=c("blue2", "red2")) + 
+  scale_fill_manual(values=c("blue2", "red2"))
+
 
 
 
