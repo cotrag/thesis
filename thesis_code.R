@@ -179,6 +179,461 @@ display(model_3)
 coef(model_3)
 
 
+# need to find a survey question about general party vote choice, because that
+# house question does not cover every house race. Ideally this would be @
+# the state level
+# let's do Pres. I'll assume very little ticket splitting which is very 
+# reasonable for a house candidate
+# demographic variables that will be used for weighting at the district level
+# V161270: highest level of edu, V161310x: race, V161361x: income
+
+anes_2016$V161031
+
+anes_2016$V161310x
+
+anes_2016$V161361x
+
+anes_2016$V161270
+
+anes_2016$V161015b
+
+# remove non-substantive variables, the vars 
+
+anes_2016_pvote <- anes_2016 %>%
+  filter(V161031 == 1 | V161031 == 2 ) %>%
+  filter(V161015b != -1) %>% 
+  filter(V161310x == 1 | V161310x == 2 |V161310x == 3 |V161310x == 4 |V161310x == 5 |
+           V161310x == 6 ) %>% 
+  filter(V161361x != -9 & V161361x != -5) %>% 
+  filter(V161270 != -9 & V161270 != -8 & V161270 != 95 & V161270 != 90)
+  
+anes_2016_pvote %>% count(V161270)
+fjoiew <- anes_2016_pvote %>% count(V161361x)
+anes_2016_pvote %>% count(V161310x)
+
+print(fjoiew, n = 28)
+
+
+
+
+anes_2016_hvote$V161015b
+
+anes_2016_pvote_trim <- anes_2016_pvote %>%
+  dplyr::select(V161031, V161015b, V161310x, V161361x,V161270)
+
+
+# NEW RECODE: 1 = HS or LESS, 2= some college, 3 = bachelors, 4 = +bachelors
+
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 9] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 1] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 2] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 3] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 4] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 5] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 6] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 7] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 8] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 10] <- 2
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 11] <- 2
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 12] <- 2
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 13] <- 3
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 14] <- 4
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 15] <- 4
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 16] <- 4
+
+
+anes_2016_pvote_trim$V161270
+
+
+anes_2016_pvote %>%
+  group_by(V161015b) %>%
+  count(V161031)
+
+state_group_pvote <-  anes_2016_pvote_trim%>%
+  count(V161015b)
+# This is not representative of state populations, need to do post stratification
+state_group_pvote
+
+anes_2016_pvote_state_ave <- anes_2016_pvote_trim %>% group_by(V161015b) %>%
+  summarise(ave_state = mean(V161015b))
+
+anes_2016_pvote_state_ave
+
+
+state_group_pvote %>% print(n = Inf)
+
+
+
+
+
+write.csv(state_group_pvote, "state_group_2_pvote.csv")
+
+
+
+sg_merge <- read_csv("state_group_2.csv")
+# This is the proportion of respondents by state, not representative, need to use post strat
+
+sg_merge
+
+# make the n proportion, can be thought of as "% of the sample is from that state"
+
+sum(sg_merge$n)
+
+
+sg_merge <- sg_merge %>%
+  mutate(pct_sample = n/1211)
+
+
+sg_merge
+
+sum(sg_merge$pct_sample)
+
+
+
+
+head(anes_2016_pvote_trim)
+
+
+anes_2016_pvote_trim_sgroup <- anes_2016_pvote_trim %>% 
+  group_by(V161015b) %>% 
+  summarise(avedu = mean(V161270), pvote_int = mean(V161031), 
+            avginc = mean( V161361x))
+
+anes_2016_pvote_trim_sgroup
+
+# for example, let's look @ for example, FL 17
+# try median household inc. as B19013_001, rather than B19001_001E
+
+anes_2016_pvote_tx <- anes_2016_pvote_trim %>%
+  filter(V161015b == 48) 
+
+anes_2016_pvote_tx
+
+
+50*6*4*28*4
+
+
+acs5 <- getCensus(name = "acs/acs5", key = "fae6a4d11b5d79c9d0914bb8078572e255183425",
+                  vintage = 2016, vars = c("B19013_001E", "B02001_001E", "B15003_001E"), 
+                  region = "congressional district")
+
+
+acs5_fl17 <- get_acs(geography = "congressional district", variables = c("B19013_001E", "B02001_001E", "B15003_001E"),
+                     state = "FL")
+
+acs5
+
+acs5_fl17 <- acs5_fl17 %>% 
+  filter(NAME == "Congressional District 17 (116th Congress), Florida")
+
+
+acs5_fl17 <- acs5_fl17 %>% 
+  pivot_wider(names_from = variable, values_from = c(estimate, moe))
+
+
+
+
+
+
+# B19001_001E = household income
+# B02001_001E = race
+# B15003_001E = edu
+
+
+# create the poststrat table
+# need to download from acs and match levels of the variable
+# other variables are hard, will just use inc. for now
+
+acs5_fl<- get_acs(geography = "congressional district", variables = "B19013_001E",
+                     state = "FL")
+
+acs5_fl <- acs5_fl %>% 
+  filter(NAME == "Congressional District 17 (116th Congress), Florida" | 
+           NAME == "Congressional District 15 (116th Congress), Florida" |
+           NAME == "Congressional District 27 (116th Congress), Florida")
+
+
+acs5_fl <- acs5_fl %>% 
+  pivot_wider(names_from = variable, values_from = c(estimate, moe))
+
+
+acs5_fl
+
+# NEED TO CITE THIS
+acs5_fl17$income <- cut(as.integer(temp_df$FINCP), 
+                      breaks = c(-Inf, 5000-1, 10000-1, 12500-1, 15000-1, 17500-1, 20000-1, 22500-1,
+                                 25500-1, 28500-1, 30000-1, 35000-1, 40000-1, 45000-1,
+                                 50000-1, 55000-1, 60000-1,55000-1,55000-1,55000-1,55000-1,55000-1,Inf),
+                      ordered_result = TRUE, labels = c("<$5,000", "$5,000 - $9,999", "$10,000 - $12,499", 
+                                                        "$12,500 - $14,999", "$40,000 - $49,999", "$50,000 - $59,999", 
+                                                        "$60,000 - $69,999", "$70,000 - $79,999","$80,000 - $99,999", 
+                                                        "$100,000 - $119,999", "$120,000 - $149,999",
+                                                        "$150,000 - $199,999","$200,000 - $249,999", "$250,000 - $349,999",
+                                                        "$350,000 - $499,999", ">$500,000"))
+
+# actually just do this manually using level given
+
+acs5_fl <- acs5_fl %>% 
+  mutate(inc_level = c(15, 14, 16))
+
+acs5_fl$inc_level
+
+
+# build the actual model
+
+anes_2016_pvote_trim_tmdf <- anes_2016_pvote_trim %>% 
+  dplyr::select(V161031, V161361x) %>% 
+  mutate(demvote = ifelse(V161031 == 1, 1, 0))
+
+anes_2016_pvote_trim_tmdf
+
+
+model_pstrat <- glmer(demvote ~ (1 | V161361x), data = anes_2016_pvote_trim_tmdf, 
+                      family = binomial(link = "logit"))
+
+model_pstrat
+
+coef(model_pstrat)
+
+display(model_pstrat)
+
+
+
+0.18*15
+
+
+?left_join
+
+pstratdf <- left_join(acs5_fl, anes_2016_pvote_trim_tmdf, by = c("inc_level" = "V161361x"))
+
+
+pstratdf
+
+
+??posterior_epred()
+
+P <- posterior_predict(model_pstrat, newdata = pstratdf, draws = 1000)
+
+
+
+
+
+cellpred <- invlogit(fixef(model_pstrat)["(Intercept)"]
+        +ranef(model_pstrat)$V161361x[acs5_fl$inc_level,1])
+
+cellpred
+# above is the estimate. Now putting it into an operable workflow.
+
+
+##### PSTRAT WORKLOW ####
+
+
+acs5 <- getCensus(name = "acs/acs5", key = "fae6a4d11b5d79c9d0914bb8078572e255183425",
+                  vintage = 2016, vars = c("B19013_001E", "B02001_001E", "B15003_001E"), 
+                  region = "congressional district")
+
+anes_2016_pvote_trim
+
+
+
+acs5_fl <- acs5_fl %>% 
+  pivot_wider(names_from = variable, values_from = c(estimate, moe))
+
+acs5_fl <- acs5_fl %>% 
+  filter(NAME == "Congressional District 17 (116th Congress), Florida" | 
+           NAME == "Congressional District 15 (116th Congress), Florida" |
+           NAME == "Congressional District 27 (116th Congress), Florida")
+
+
+
+# build the actual model
+
+anes_2016_pvote_trim_tmdf <- anes_2016_pvote_trim %>% 
+  dplyr::select(V161031, V161361x) %>% 
+  mutate(demvote = ifelse(V161031 == 1, 1, 0))
+
+anes_2016_pvote_trim_tmdf
+
+
+model_pstrat <- glmer(demvote ~ (1 | V161361x), data = anes_2016_pvote_trim_tmdf, 
+                      family = binomial(link = "logit"))
+
+model_pstrat
+
+coef(model_pstrat)
+
+display(model_pstrat)
+
+
+pstratdf <- left_join(acs5_fl, anes_2016_pvote_trim_tmdf, by = c("inc_level" = "V161361x"))
+
+
+pstratdf
+
+
+
+cellpred <- invlogit(fixef(model_pstrat)["(Intercept)"]
+                     +ranef(model_pstrat)$V161361x[acs5_fl$inc_level,1])
+
+cellpred
+
+
+
+
+
+
+
+
+
+
+
+# trying something else
+
+anes_2016_pvote_trim_tmdf # survey & predictor
+# let's group that for each demo group (inc level in this case)
+
+group_for_ps_anes_2016_pvote_trim_tmdf <- anes_2016_pvote_trim_tmdf %>% 
+  group_by(V161361x) %>% 
+  summarise(pct_dvote = mean(demvote))
+
+group_for_ps_anes_2016_pvote_trim_tmdf
+
+acs5_fl # census
+
+# join these
+
+group_for_ps_anes_2016_pvote_trim_tmdf
+
+
+acs5_fl
+
+join_for_ps <- left_join(acs5_fl, group_for_ps_anes_2016_pvote_trim_tmdf,
+                         by = c("inc_level", "V161361x"))
+
+
+
+pstratdf <- pstratdf %>% 
+  group_by(inc_level) %>% 
+  summarise(pct_dvote = mean(demvote))
+
+pstratdf
+
+
+
+
+
+
+ps.approx.mod <- Census %>%
+  mutate(support = predict(approx.mod, newdata=., 
+                           allow.new.levels=TRUE, type='response')) %>%
+  mutate(support = support * cpercent.state) %>%
+  group_by(state) %>%
+  summarise(support = sum(support))
+
+
+
+
+
+#### example poststrat from book ####
+
+
+## Read data
+gss_df <- readRDS("GSS2016_use.rds") # survey data
+acs_df <- readRDS("../data/ACS2016_use.rds") # auxiliary information
+
+
+anes_2016_pvote_trim_tmdf # survey data
+acs5_fl # aux info
+
+anes_2016_pvote_trim_tmdf
+
+
+?svydesign()
+
+
+
+acs5_fl <- acs5_fl %>% 
+  mutate(V161361x = inc_level)
+
+
+acs5_fl
+## Create design-weighted svydesign objects
+anes_dwt <- svydesign(ids = ~1, weights = ~V161361x, strata = NULL,
+                     data = anes_2016_pvote_trim_tmdf, nest = TRUE)
+
+acs_dwt <- svydesign(ids = ~1, weight = ~inc_level, data = acs5_fl)
+
+## Create replicate-weight design (for bootstrapping; see Canty & Davison 1999)
+anes_boot <- as.svrepdesign(anes_dwt, type = "bootstrap", replicates = 100)
+
+# FUNCTION FOR CREATING TARGETS FROM AUXILIARY INFORMATION AND FORMULA
+create_targets <- function (target_design, target_formula) {
+  target_mf <- model.frame(target_formula, model.frame(target_design))
+  target_mm <- model.matrix(target_formula, target_mf)
+  wts <- weights(target_design)
+  colSums(target_mm * wts) / sum(wts) # returns vector of targets
+}
+
+# POSTSTRATIFICATION BY SEX
+
+## Method 2: Poststratification as a form of linear weighting
+anes_ps <- calibrate(design = anes_dwt,
+                    formula = ~V161361x,
+                    population = create_targets(acs_dwt, ~V161361x),
+                    calfun = "linear")
+
+
+
+
+# CALIBRATION
+
+## Formula notation for auxiliary vector (function of auxiliary variables)
+target_formula <- ~ (sex + age_int)^2 + I(age_int^2) + race3 + edu5
+
+## Vector of targets
+(targets <- create_targets(acs_dwt, target_formula))
+
+## Linear weighting
+gss_lwt <- calibrate(design = gss_dwt,
+                     formula = target_formula,
+                     population = targets,
+                     calfun = "linear")
+
+## Entropy weighting (like raking but can use continuous variables)
+gss_ewt <- calibrate(design = gss_dwt,
+                     formula = target_formula,
+                     population = targets,
+                     calfun = "raking")
+
+
+
+## Verify targets
+
+### means
+svymean(~edu5 + sex + age_int + race3, gss_dwt) # unadjusted
+svymean(~edu5 + sex + age_int + race3, acs_dwt) # target
+svymean(~edu5 + sex + age_int + race3, gss_lwt) # linear weighting
+svymean(~edu5 + sex + age_int + race3, gss_ewt) # entropy weighting
+
+### interaction of sex and age
+svyby(~age_int, ~sex, gss_dwt, svymean) # unadjusted
+svyby(~age_int, ~sex, acs_dwt, svymean) # target
+svyby(~age_int, ~sex, gss_lwt, svymean) # linear weighting
+svyby(~age_int, ~sex, gss_ewt, svymean) # entropy weighting
+
+### quantiles
+svyquantile(~age_int, gss_dwt, seq(.1, .9, .1)) # unadjusted
+svyquantile(~age_int, acs_dwt, seq(.1, .9, .1)) # target
+svyquantile(~age_int, gss_lwt, seq(.1, .9, .1)) # linear weighting
+svyquantile(~age_int, gss_ewt, seq(.1, .9, .1)) # entropy weighting
+
+
+
+
+
+
+
+
 
 
 
@@ -680,7 +1135,81 @@ ggplot(remoove_outlier_results_for_graphing_add_pres, aes(d_vote_share, totspend
   scale_fill_manual(values=c("blue2", "red2"))
 
 
+ggplot(results_for_graphing_add_pres, aes(avg_price, totspend, fill = cand_party, colour = cand_party)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_economist() + 
+  scale_color_manual(values=c("blue2", "red2")) + 
+  scale_fill_manual(values=c("blue2", "red2"))
 
+
+results_for_graphing_add_pres$CloseSharePrice
+
+ggplot(results_for_graphing_add_pres, aes(CloseSharePrice, totspend, fill = cand_party, colour = cand_party)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Price Near Resolution", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray() + 
+  scale_color_manual(values=c("blue2", "red2")) + 
+  scale_fill_manual(values=c("blue2", "red2"))
+
+
+
+
+avg_graph <- ggplot(merged_pi_markets_for_graphing, aes(avg_price, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+open_graph <- ggplot(merged_pi_markets_for_graphing, aes(OpenSharePrice, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Market Opening Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+
+(merged_pi_markets_for_graphing)
+merged_pi_markets_for_graphing
+
+res_graph <- ggplot(merged_pi_markets_for_graphing, aes(CloseSharePrice, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Price Near Resolution", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+plot_grid(avg_graph, open_graph, res_graph)
+
+
+merged_pi_markets_for_graphing %>%
+  tidyr::gather(pricetype, price, contains("price")) %>%
+  ggplot(aes(price,totspend) ) +
+  geom_point() +
+  facet_wrap(~pricetype) + 
+  theme_economist()
+
+
+
+results_for_graphing_add_pres %>%
+  tidyr::gather(pricetype, price, contains("price")) %>%
+  ggplot(aes(price,totspend, fill = cand_party, colour = cand_party) ) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~pricetype) +
+  scale_y_continuous(labels = scales::comma) + 
+  scale_color_manual(values=c("blue2", "red2")) + 
+  scale_fill_manual(values=c("blue2", "red2"))
+
+
+
+
+results_for_graphing_add_pres$CloseSharePrice
 
 
 #### Betting Market Data ####
@@ -845,6 +1374,8 @@ model_ml <- lm(log(cum_sp) ~ log(CloseSharePrice) + HistoryDate, data = ml_joine
 
 
 summary(model_ml)
+
+extract_eq(model_ml, use_coefs = TRUE)
 
 
 plot(model_ml)
@@ -1143,16 +1674,5 @@ hs_dummy_sen_house <- hs_dummy_sen_house  %>%
 
 
 n_dummy %>% print(n = Inf)
-
-
-
-devtools::install_github("gadenbuie/rsthemes")
-
-rsthemes::install_rsthemes()
-
-rsthemes::list_rsthemes()
-
-rstudioapi::applyTheme("Horizon Dark {rsthemes}")
-
 
 
