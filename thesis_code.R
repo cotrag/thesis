@@ -427,42 +427,146 @@ cellpred
 
 ##### PSTRAT WORKLOW ####
 
+# remove non-substantive variables, the vars 
+# also need to add weights
+
+anes_2016_pvote <- anes_2016 %>%
+  filter(V161031 == 1 | V161031 == 2 ) %>%
+  filter(V161015b != -1) %>% 
+  filter(V161310x == 1 | V161310x == 2 |V161310x == 3 |V161310x == 4 |V161310x == 5 |
+           V161310x == 6 ) %>% 
+  filter(V161361x != -9 & V161361x != -5) %>% 
+  filter(V161270 != -9 & V161270 != -8 & V161270 != 95 & V161270 != 90)
+
+
+
+
+anes_2016_hvote$V161015b
+
+anes_2016_pvote_trim <- anes_2016_pvote %>%
+  dplyr::select(V161031, V161015b, V161310x, V161361x,V161270, V160101)
+
+
+anes_2016_pvote_trim
+
+anes_2016_pvote_trim_w <- anes_2016_pvote_trim %>% 
+  dplyr::mutate(pvote_w = V161031 * V160101,
+                state_w = V161015b * V160101,
+                race_w = V161310x * V160101,
+                edu_w = V161270 * V160101)
+
+
+# will ask prof about this, cat vars. cease to have meaning with these weights
+anes_2016_pvote_trim_w
+
+# NEW RECODE: 1 = HS or LESS, 2= some college, 3 = bachelors, 4 = +bachelors
+
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 9] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 1] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 2] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 3] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 4] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 5] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 6] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 7] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 8] <- 1
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 10] <- 2
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 11] <- 2
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 12] <- 2
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 13] <- 3
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 14] <- 4
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 15] <- 4
+anes_2016_pvote_trim$V161270[anes_2016_pvote_trim$V161270 == 16] <- 4
+
+
+anes_2016_pvote_trim$V161270
+
+
+
+
+
+
+
 
 acs5 <- getCensus(name = "acs/acs5", key = "fae6a4d11b5d79c9d0914bb8078572e255183425",
-                  vintage = 2016, vars = c("B19013_001E", "B02001_001E", "B15003_001E"), 
+                  vintage = 2016, vars = c("B19013_001E", "B02001_001E", "B15003_001E", 
+                                           "B02001_002E", "B01001_001E"), 
                   region = "congressional district")
+
+
 
 anes_2016_pvote_trim
 
 
 
+acs5_fl<- get_acs(geography = "congressional district", variables = c("B19013_001E", "B02001_002E", "B01001_001E"),
+                  state = "FL")
+
+acs5_fl
+
+
 acs5_fl <- acs5_fl %>% 
   pivot_wider(names_from = variable, values_from = c(estimate, moe))
+
+acs5_fl
 
 acs5_fl <- acs5_fl %>% 
   filter(NAME == "Congressional District 17 (116th Congress), Florida" | 
            NAME == "Congressional District 15 (116th Congress), Florida" |
            NAME == "Congressional District 27 (116th Congress), Florida")
 
+acs5_fl
 
+
+acs.lookup(2016, span = 1, dataset = "acs", keyword = "White")
+
+
+
+# B02001_002E-- # white alone
+# B01001_001E-- total pop
+
+
+acs5$B02001_002E 
+
+acs5$B01001_001E
+
+# maybe may everything binary: white vs. nonwhite, col+ vs. noncoledu
+# this would be more general and easier to work with
+# remember I recoded edu above
+
+anes_2016_pvote_trim$V161270
 
 # build the actual model
 
+table(anes_2016_pvote_trim$V161270)
+
 anes_2016_pvote_trim_tmdf <- anes_2016_pvote_trim %>% 
-  dplyr::select(V161031, V161361x) %>% 
-  mutate(demvote = ifelse(V161031 == 1, 1, 0))
+  # dplyr::select(V161031, V161361x) %>% 
+  dplyr::mutate(demvote = ifelse(V161031 == 1, 1, 0)) %>% 
+  dplyr::mutate(white = ifelse(V161310x == 1, 1, 0)) %>% 
+ dplyr::mutate(coledu = ifelse(V161270 >= 3, 1, 0))
 
-anes_2016_pvote_trim_tmdf
+table(anes_2016_pvote_trim_tmdf$coledu)
+table(anes_2016_pvote_trim_tmdf$white)
+table(anes_2016_pvote_trim_tmdf$demvote)
 
 
-model_pstrat <- glmer(demvote ~ (1 | V161361x), data = anes_2016_pvote_trim_tmdf, 
+anes_2016_pvote_trim
+
+model_pstrat <- glmer(demvote ~ (1 | V161361x) + (1 | coledu) + (1 | white), data = anes_2016_pvote_trim_tmdf, 
                       family = binomial(link = "logit"))
 
 model_pstrat
 
+
+??glmer
+
+
 coef(model_pstrat)
 
 display(model_pstrat)
+
+??display()
 
 
 pstratdf <- left_join(acs5_fl, anes_2016_pvote_trim_tmdf, by = c("inc_level" = "V161361x"))
