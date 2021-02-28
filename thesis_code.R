@@ -312,7 +312,7 @@ anes_2016_pvote_tx
 
 50*6*4*28*4
 
-
+??getCensus()
 acs5 <- getCensus(name = "acs/acs5", key = "fae6a4d11b5d79c9d0914bb8078572e255183425",
                   vintage = 2016, vars = c("B19013_001E", "B02001_001E", "B15003_001E"), 
                   region = "congressional district")
@@ -411,7 +411,7 @@ pstratdf
 
 
 ??posterior_epred()
-
+??posterior_predict()
 P <- posterior_predict(model_pstrat, newdata = pstratdf, draws = 1000)
 
 
@@ -518,6 +518,10 @@ acs5_fl <- acs5_fl %>%
 acs5_fl
 
 
+# put inc level in 
+acs5_fl <- acs5_fl %>% 
+  mutate(inc_level = c(15, 14, 16))
+
 acs.lookup(2016, span = 1, dataset = "acs", keyword = "White")
 
 
@@ -572,9 +576,15 @@ display(model_pstrat)
 pstratdf <- left_join(acs5_fl, anes_2016_pvote_trim_tmdf, by = c("inc_level" = "V161361x"))
 
 
+acs5_fl
+
+anes_2016_pvote_trim_tmdf
+
+acs5_fl
+
 pstratdf
 
-
+acs5_fl
 
 cellpred <- invlogit(fixef(model_pstrat)["(Intercept)"]
                      +ranef(model_pstrat)$V161361x[acs5_fl$inc_level,1])
@@ -757,7 +767,6 @@ new_pi_add_avg <- left_join(pi_markets, try_pi_markets_ai)
 
 # need to work on matching these with IE spending, will do in excel
 
-
 write.xlsx(try_pi_markets_ai, file = "pi_markets_new_addmean.xlsx")
 write.xlsx(new_pi_add_avg, file = "tot_pimkts_vis.xlsx")
 
@@ -828,7 +837,7 @@ mean_spend_graph_update$totspend
 mean_spend_graph_update_nz <- mean_spend_graph_update %>%
   filter(totspend != 0)
 
-
+mean_spend_graph_update_nz
 
 ggplot(mean_spend_graph_update, aes(avg_price, totspend)) +
   geom_point() + 
@@ -836,6 +845,9 @@ ggplot(mean_spend_graph_update, aes(avg_price, totspend)) +
   labs(x= "Average Daily Closing Price", y= "Total IE Supporting Candidate") +
   scale_y_continuous(labels = scales::comma) +
   theme_classic()
+
+mean_spend_graph_update_nz
+
 
 # no 0's
 
@@ -967,9 +979,25 @@ res_graph <- ggplot(merged_pi_markets_for_graphing, aes(CloseSharePrice, totspen
 
 plot_grid(avg_graph, open_graph, res_graph)
 
+res_graph
+
+
+merged_pi_markets_for_graphing
+
+
+?cor.test()
+# these are linear corr estimates... bad
+cor.test(merged_pi_markets_for_graphing$totspend, 
+         merged_pi_markets_for_graphing$avg_price, method = "pearson")
+
+
+cor.test(merged_pi_markets_for_graphing$totspend, 
+         merged_pi_markets_for_graphing$CloseSharePrice, method = "pearson")
 
 
 
+cor.test(merged_pi_markets_for_graphing$totspend, 
+         merged_pi_markets_for_graphing$OpenSharePrice, method = "pearson")
 
 
 head(pi_markets_op_price_graph)
@@ -977,85 +1005,25 @@ head(pi_markets_op_price_graph)
 new_pi_add_avg <- left_join(pi_markets, try_pi_markets_ai)
 
 
+merged_pi_long_for_graphing <- merged_pi_markets_for_graphing %>% 
+  dplyr::select(ContractId, avg_price, totspend, OpenSharePrice, CloseSharePrice) %>% 
+  pivot_longer(c(avg_price, OpenSharePrice, CloseSharePrice), names_to = "timing", values_to = "price")
+
+merged_pi_long_for_graphing
+
+
+
+ggplot(merged_pi_long_for_graphing, aes(price, totspend, color = timing)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
 
 
 
 
 
-
-
-
-
-
-
-
-
-# messing around with charting
-
-bbc_style <- function() {
-  font <- "Helvetica"
-  
-  ggplot2::theme(
-    
-    #Text format:
-    #This sets the font, size, type and colour of text for the chart's title
-    plot.title = ggplot2::element_text(family=font,
-                                       size=28,
-                                       face="bold",
-                                       color="#222222"),
-    #This sets the font, size, type and colour of text for the chart's subtitle, as well as setting a margin between the title and the subtitle
-    plot.subtitle = ggplot2::element_text(family=font,
-                                          size=22,
-                                          margin=ggplot2::margin(9,0,9,0)),
-    plot.caption = ggplot2::element_blank(),
-    #This leaves the caption text element empty, because it is set elsewhere in the finalise plot function
-    
-    #Legend format
-    #This sets the position and alignment of the legend, removes a title and backround for it and sets the requirements for any text within the legend. The legend may often need some more manual tweaking when it comes to its exact position based on the plot coordinates.
-    legend.position = "top",
-    legend.text.align = 0,
-    legend.background = ggplot2::element_blank(),
-    legend.title = ggplot2::element_blank(),
-    legend.key = ggplot2::element_blank(),
-    legend.text = ggplot2::element_text(family=font,
-                                        size=18,
-                                        color="#222222"),
-    
-    #Axis format
-    #This sets the text font, size and colour for the axis test, as well as setting the margins and removes lines and ticks. In some cases, axis lines and axis ticks are things we would want to have in the chart - the cookbook shows examples of how to do so.
-    axis.title = ggplot2::element_blank(),
-    axis.text = ggplot2::element_text(family=font,
-                                      size=18,
-                                      color="#222222"),
-    axis.text.x = ggplot2::element_text(margin=ggplot2::margin(5, b = 10)),
-    axis.ticks = ggplot2::element_blank(),
-    axis.line = ggplot2::element_blank(),
-    
-    #Grid lines
-    #This removes all minor gridlines and adds major y gridlines. In many cases you will want to change this to remove y gridlines and add x gridlines. The cookbook shows you examples for doing so
-    panel.grid.minor = ggplot2::element_blank(),
-    panel.grid.major.y = ggplot2::element_line(color="#cbcbcb"),
-    panel.grid.major.x = ggplot2::element_blank(),
-    
-    #Blank background
-    #This sets the panel background as blank, removing the standard grey ggplot background colour from the plot
-    panel.background = ggplot2::element_blank(),
-    
-    #Strip background (#This sets the panel background for facet-wrapped plots to white, removing the standard grey ggplot background colour and sets the title size of the facet-wrap title to font size 22)
-    strip.background = ggplot2::element_rect(fill="white"),
-    strip.text = ggplot2::element_text(size  = 22,  hjust = 0)
-  )
-}
-
-my_theme <- function () { 
-  theme_minimal(base_size = 10, base_family = "Roboto") %+replace% 
-    theme(axis.title = element_text(face = "bold"),
-          axis.text = element_text(face = "italic"),
-          plot.title = element_text(face = "bold",
-                                    size = 12)
-          
-    )
-}
 
 #### Now Let's Add Prev Pres Vote Share in the CD to see if it Tracks at all ####
 
@@ -1084,14 +1052,19 @@ write.xlsx(pres_election_results, "pres_election_results.xlsx")
 
 pres_election_results <- read.xlsx("pres_election_results.xlsx")
 
+?read.xlsx()
 
-pres_election_results 
+pres_election_results$Clinton
+
+merged_pi_markets_for_graphing
 
 merged_pi_markets_for_graphing_add_pres <- left_join(merged_pi_markets_for_graphing, pres_election_results,
                                                      by = c("name" = "Incumbent"))
 
 
-merged_pi_markets_for_graphing_add_pres
+merged_pi_markets_for_graphing_add_pres$Clinton
+
+
 
 # go into excel to fix issues of NAs, also add year variables
 
@@ -1102,7 +1075,7 @@ write.xlsx(merged_pi_markets_for_graphing_add_pres, file = "merged_pi_markets_fo
 
 merged_pi_markets_for_graphing_add_pres <- read.xlsx("merged_pi_markets_for_graphing_add_pres.xlsx")
 
-
+merged_pi_markets_for_graphing_add_pres
 merged_pi_markets_for_graphing_add_pres$Year_contract
 
 pres_election_results_for_2018 <- read_csv("Daily Kos Elections 2008, 2012 & 2016 presidential election results for congressional districts used in 2018 elections - Results.csv")
@@ -1117,11 +1090,14 @@ pres_election_results_for_2018$Incumbent
 
 write.xlsx(pres_election_results_for_2018, "pres_election_results_for_2018.xlsx")
 
-pres_election_results_for_2018 <- read.xlsx("pres_election_results_for_2018.xlsx")
+pres_election_results_for_2018 <- read_xlsx("pres_election_results_for_2018.xlsx")
 
 
 # add this to the larger list after subsetting that list for 2018 only, then copy
 # into the list using excel
+
+merged_pi_markets_for_graphing_add_pres$ 
+
 add_for_2018_only <- merged_pi_markets_for_graphing_add_pres %>%
   filter(Year_contract == 2018)
 
@@ -1136,9 +1112,9 @@ write.xlsx(merged_pi_markets_for_graphing_add_pres_2018,
 
 
 # Just hand added results that did not automatically merge, final copy is below
+read_xlsx()
 
-
-results_for_graphing_add_pres <- read.xlsx("merged_pi_markets_for_graphing_add_pres.xlsx")
+results_for_graphing_add_pres <- read_xlsx("merged_pi_markets_for_graphing_add_pres.xlsx")
 
 head(results_for_graphing_add_pres)
 
@@ -1263,6 +1239,7 @@ ggplot(results_for_graphing_add_pres, aes(CloseSharePrice, totspend, fill = cand
 
 
 
+
 avg_graph <- ggplot(merged_pi_markets_for_graphing, aes(avg_price, totspend)) +
   geom_point() + 
   geom_smooth() +
@@ -1296,7 +1273,7 @@ merged_pi_markets_for_graphing %>%
   ggplot(aes(price,totspend) ) +
   geom_point() +
   facet_wrap(~pricetype) + 
-  theme_economist()
+  theme_classic()
 
 
 
@@ -1311,9 +1288,408 @@ results_for_graphing_add_pres %>%
   scale_fill_manual(values=c("blue2", "red2"))
 
 
+# labels
+
+price_names <- c(
+  'avg_price' = "Average Price",
+  'CloseSharePrice' = "Close Share Price",
+  'OpenSharePrice' = "Open Share Price"
+)
 
 
-results_for_graphing_add_pres$CloseSharePrice
+results_for_graphing_add_pres %>%
+  tidyr::gather(pricetype, price, contains("price")) %>%
+  ggplot(aes(price,totspend)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~pricetype, labeller = as_labeller(price_names)) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(x = "Price", y = "Total IE Spending", title = "Figure 1") +
+  theme_bw()
+
+?facet_wrap()
+
+
+results_for_graphing_add_pres
+
+
+# the difficulty with these correlation tests is that they assume linearity or
+# a monotonic relationship
+#### for the above graphs, try adding a gaussian curve to see how it relates####
+
+
+cor.test(results_for_graphing_add_pres$CloseSharePrice, 
+         results_for_graphing_add_pres$totspend, method = "kendall")
+
+m1 <- lm(totspend ~ I(CloseSharePrice^2) , data = results_for_graphing_add_pres)
+
+summary(m1)
+
+dcor.test(results_for_graphing_add_pres$CloseSharePrice, 
+     results_for_graphing_add_pres$totspend, R = 10)
+
+DCOR(results_for_graphing_add_pres$CloseSharePrice, 
+     results_for_graphing_add_pres$totspend)
+
+
+?cor.test()
+
+
+nlcor
+
+
+
+cor.test(results_for_graphing_add_pres$OpenSharePrice, 
+         results_for_graphing_add_pres$totspend, method = "pearson")
+
+
+cor.test(results_for_graphing_add_pres$avg_price, 
+         results_for_graphing_add_pres$totspend, method = "pearson")
+
+
+results_for_graphing_add_pres <- results_for_graphing_add_pres %>% 
+  mutate(d_vs = Clinton - Trump) %>% 
+  mutate(r_vs = Trump - Clinton)
+
+results_for_graphing_add_pres$d_vs
+
+
+ggplot(results_for_graphing_add_pres, aes(d_vs, totspend)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(x= "Market Opening Price", y= "Total IE Supporting Candidate") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_gray()
+
+cor.test(results_for_graphing_add_pres$d_vs, 
+         results_for_graphing_add_pres$totspend, method = "pearson")
+
+
+install_github("ProcessMiner/nlcor")
+
+
+force = TRUE
+
+
+nlcor(results_for_graphing_add_pres$avg_price, 
+      results_for_graphing_add_pres$totspend, plt = T)
+
+
+m = lm(totspend ~ avg_price + I(avg_price^2), data = results_for_graphing_add_pres)
+
+summary(m)
+
+dcor(results_for_graphing_add_pres$avg_price,results_for_graphing_add_pres$totspend)
+
+dcor.test(results_for_graphing_add_pres$avg_price,results_for_graphing_add_pres$totspend)
+
+results_for_graphing_add_pres$avg_price
+results_for_graphing_add_pres$totspend
+
+results_for_graphing_add_pres
+
+head(merged_pi_markets_for_graphing)
+
+
+m = lm(totspend ~ avg_price + I(avg_price^2), 
+       data = merged_pi_markets_for_graphing)
+
+summary(m)
+
+m2 = lm(totspend ~ OpenSharePrice + I(OpenSharePrice^2), 
+        data = merged_pi_markets_for_graphing)
+
+mexp = lm(totspend ~ log(OpenSharePrice) + log(I(OpenSharePrice^2)), 
+        data = merged_pi_markets_for_graphing)
+
+head(merged_pi_markets_for_graphing)
+
+merged_pi_markets_for_graphing$totspend
+
+merged_pi_markets_for_graphing
+
+merged_pi_markets_for_graphing <- merged_pi_markets_for_graphing %>% 
+  mutate(close_cents = CloseSharePrice*100, open_cents = OpenSharePrice*100,
+         avg_cents = avg_price*100)
+
+merged_pi_markets_for_graphing
+
+m3 = lm(totspend ~ CloseSharePrice + I(CloseSharePrice^2), 
+        data = merged_pi_markets_for_graphing)
+
+summary(m3)
+
+# try in cents
+
+m3_cents = lm(totspend ~ close_cents + I(close_cents^2), 
+        data = merged_pi_markets_for_graphing)
+
+summary(m3_cents)
+
+m2_cents = lm(totspend ~ avg_cents + I(avg_cents^2), 
+              data = merged_pi_markets_for_graphing)
+
+summary(m2_cents)
+
+m1_cents = lm(totspend ~ open_cents + I(open_cents^2), 
+              data = merged_pi_markets_for_graphing)
+
+summary(m1_cents)
+
+
+##### DO THE MODELS IN CENTS IT LOOKS BETTER ####
+
+
+
+
+
+models <- list("m1_cents", "m2_cents", "m3_cents")
+
+
+models <- list(
+  "Opening Price Model" = lm(totspend ~ open_cents + I(open_cents^2), 
+                             data = merged_pi_markets_for_graphing),
+  "Average Price Model" =lm(totspend ~ avg_cents + I(avg_cents^2), 
+                            data = merged_pi_markets_for_graphing),
+  "Closing Price Model" = lm(totspend ~ close_cents + I(close_cents^2), 
+                             data = merged_pi_markets_for_graphing))
+
+
+
+modelsummary(models, output = "html")
+
+modelplot(models, conf_level = 0.95, coef_omit = 'Interc')
+
+
+stargazer(models, type = "latex", title = "Models", style = "apsr")
+
+
+plot(m2_cents)
+
+
+# SPLIT INTO BELOW AND ABOVE 50 CENTS TO AVOID NONMONOTONIC
+
+head(merged_pi_markets_for_graphing)
+
+model_data_open_u50 <- merged_pi_markets_for_graphing %>% 
+  filter(open_cents <=50)
+
+model_data_open_50p <- merged_pi_markets_for_graphing %>% 
+  filter(open_cents > 50)
+
+model_data_open_u50
+
+model_data_open_50p
+
+split_open_model_50b <- lm(totspend ~ open_cents + I(open_cents^2), 
+   data = model_data_open_u50)
+
+summary(model_data_open_u50)
+
+split_open_model_50up <- lm(totspend ~ open_cents + I(open_cents^2), 
+                      data =model_data_open_50p)
+
+summary(split_open_model_50up)
+
+
+model_data_close_u50 <- merged_pi_markets_for_graphing %>% 
+  filter(close_cents <=50)
+
+model_data_close_50p <- merged_pi_markets_for_graphing %>% 
+  filter(close_cents > 50)
+
+model_data_close_u50
+
+model_data_close_50p
+
+split_close_model_50b <- lm(totspend ~ close_cents + I(close_cents^2), 
+                          data = model_data_close_u50)
+
+summary(split_close_model_50b)
+
+split_close_model_50up <- lm(totspend ~ avg_cents + I(avg_cents^2), 
+                           data =model_data_close_50p)
+
+summary(split_close_model_50up)
+
+
+model_data_avg_u50 <- merged_pi_markets_for_graphing %>% 
+  filter(avg_cents <=50)
+
+model_data_avg_50p <- merged_pi_markets_for_graphing %>% 
+  filter(avg_cents > 50)
+
+model_data_avg_u50
+
+model_data_avg_50p
+
+split_avg_model_50b <- lm(totspend ~ avg_cents + I(avg_cents^2), 
+                          data = model_data_avg_u50)
+
+summary(split_avg_model_50b)
+
+split_avg_model_50up <- lm(totspend ~ avg_cents + I(avg_cents^2), 
+                           data =model_data_avg_50p)
+
+summary(split_avg_model_50up)
+
+
+models_split <- list(
+  "Open <= 50" = lm(totspend ~ open_cents + I(open_cents^2), 
+                    data = model_data_open_u50),
+  "Open > 50" = lm(totspend ~ open_cents + I(open_cents^2), 
+                   data =model_data_open_50p),
+  "Average <= 50" = lm(totspend ~ avg_cents + I(avg_cents^2), 
+                       data = model_data_avg_u50),
+  "Average > 50" = lm(totspend ~ avg_cents + I(avg_cents^2), 
+                   data =model_data_avg_50p),
+  "Close <= 50" = lm(totspend ~ close_cents + I(close_cents^2), 
+                     data = model_data_close_u50),
+  "Close > 50" = lm(totspend ~ close_cents + I(close_cents^2), 
+                    data =model_data_close_50p)
+)
+
+modelsummary(models_split, stars = TRUE)
+
+stargazer(models_split, type = "html",
+          title = "Table 1" ,out = "models_thesis_wtitle.html")
+
+
+extract_eq(split_avg_model_50up)
+
+summary(split_avg_model_50up)
+
+# $$
+# \operatorname{totspend} = \alpha + \beta_{1}(\operatorname{avg\_cents}) + \beta_{2}(\operatorname{avg\_cents\char`\^2}) + \epsilon
+# $$
+
+
+#### UPDATED DATA/USING GAM ####
+
+final_dataset <- read_csv("final_thesis_dataset.csv")
+
+
+
+
+view(final_dataset)
+
+final_dataset <- left_join(final_dataset, pres_election_results, 
+                           by = c("CD" = "CD"))
+
+head(final_dataset)
+
+final_dataset <- final_dataset %>% 
+  dplyr::select(ContractId, avg_price, name, OpenSharePrice, CloseSharePrice,
+                Year, CD, Party.x, Incumbent.x, Clinton.y, Trump.y)
+
+final_dataset
+
+
+pvi_2017 <- read_csv("pvi.csv")
+
+pvi_2017
+
+# want to join, but only for the 2018 elections
+
+final_dataset_2018 <- final_dataset %>% 
+  filter(Year == 2018)
+
+final_dataset_2016 <- final_dataset %>% 
+  filter(Year == 2016)
+
+
+final_dataset_2018 <- left_join(final_dataset_2018, pvi_2017,
+                                by = c("CD" = "Dist"))
+
+view(final_dataset_2018)
+
+# need to recode EVEN as 0
+# also need to take into account what 'R +4' means
+# solve by positive is PVI lean is towards candidate's party, negative if not
+# need to stack the datasets in excel...
+
+
+write.xlsx(final_dataset_2018, "final_dataset_2018.xlsx")
+
+write.xlsx(final_dataset_2016, "final_dataset_2016.xlsx")
+
+
+final_dataset_stack <- read_csv("final_dataset_stacked.csv")
+
+head(final_dataset_stack)
+
+final_dataset_stack <- final_dataset_stack %>% 
+  dplyr::mutate(close_cents = CloseSharePrice * 100)
+
+# OpenSharePrice
+final_dataset_stack <- final_dataset_stack %>% 
+  dplyr::mutate(open_cents = OpenSharePrice * 100)
+
+final_dataset_stack <- final_dataset_stack %>% 
+  dplyr::mutate(avg_cents = avg_price * 100)
+
+
+
+mclose_gam_update <- gam(totspend ~ s(close_cents, k = 30) + s(pvi_towards_candidate) +
+                           party + incumbent,  
+                  data = final_dataset_stack)
+
+coef(mclose_gam_update)
+summary(mclose_gam_update)
+
+mopen_gam_update <- gam(totspend ~ s(open_cents) + s(pvi_towards_candidate) +
+                           party + incumbent, 
+                         data = final_dataset_stack)
+
+coef(mopen_gam_update)
+summary(mopen_gam_update)
+
+mavg_gam_update <- gam(totspend ~ s(avg_cents) + s(pvi_towards_candidate) +
+                           party + incumbent, 
+                         data = final_dataset_stack)
+
+coef(mavg_gam_update)
+
+summary.gam(mavg_gam_update)
+
+summary.gam(mclose_gam_update)
+
+summary.gam(mopen_gam_update)
+
+
+sink(file = NULL)
+
+
+
+gam.check(mavg_gam_update)
+gam.check(mopen_gam_update)
+gam.check(mclose_gam_update)
+
+plot(mavg_gam_update)
+
+sink()
+
+gam_models <- list(
+  "Close Price Model" = gam(totspend ~ s(close_cents, k = 30) + s(pvi_towards_candidate) +
+                              party + incumbent,  
+                            data = final_dataset_stack),
+  "Open Price Model" = gam(totspend ~ s(open_cents) + s(pvi_towards_candidate) +
+                             party + incumbent, 
+                           data = final_dataset_stack),
+  "Average Price Model" = gam(totspend ~ s(avg_cents) + s(pvi_towards_candidate) +
+                                party + incumbent, 
+                              data = final_dataset_stack))
+
+
+
+stargazer(gam_models, type = "html",
+         title = "Table 1" ,out = "gam_models.html")
+
+
+
+
+
+
 
 
 #### Betting Market Data ####
@@ -1346,8 +1722,6 @@ pi_markets_sg$HistoryDate <- ymd(pi_markets_sg$HistoryDate)
 
 ggplot(pi_markets_sg, aes(x=HistoryDate)) +
   geom_line(aes(y=CloseSharePrice))
-
-
 
 
 
