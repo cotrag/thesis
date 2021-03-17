@@ -1628,24 +1628,42 @@ final_dataset_stack <- final_dataset_stack %>%
 final_dataset_stack <- final_dataset_stack %>% 
   dplyr::mutate(avg_cents = avg_price * 100)
 
+final_dataset_stack$Year
+
+# Make it binary: 2016==0, 2018==1
+
+final_dataset_stack <- final_dataset_stack %>% 
+  dplyr::mutate(year_binary = ifelse(Year==2018, 1, 0))
 
 
-mclose_gam_update <- gam(totspend ~ s(close_cents, k = 30) + s(pvi_towards_candidate) +
-                           party + incumbent,  
+final_dataset_stack$year_binary
+
+final_dataset_stack$l_cook_rating <- final_dataset_stack$`Late Cook Rating`
+
+
+mclose_gam_update <- mgcv::gam(totspend ~ s(close_cents) + s(pvi_towards_candidate) +
+                          s(l_cook_rating, k = 6)  + party + incumbent + year_binary,  
                   data = final_dataset_stack)
 
 coef(mclose_gam_update)
-summary(mclose_gam_update)
+summary.gam(mclose_gam_update)
 
-mopen_gam_update <- gam(totspend ~ s(open_cents) + s(pvi_towards_candidate) +
-                           party + incumbent, 
+gam.check(mclose_gam_update)
+
+
+mopen_gam_update <- mgcv::gam(totspend ~ s(open_cents) + s(pvi_towards_candidate) +
+                        s(l_cook_rating, k = 6) + party + incumbent + year_binary, 
                          data = final_dataset_stack)
+
+
+
+mopen_gam_update
 
 coef(mopen_gam_update)
 summary(mopen_gam_update)
 
-mavg_gam_update <- gam(totspend ~ s(avg_cents) + s(pvi_towards_candidate) +
-                           party + incumbent, 
+mavg_gam_update <- mgcv::gam(totspend ~ s(avg_cents) + s(pvi_towards_candidate) +
+                         s(l_cook_rating, k = 6) + party + incumbent + year_binary, 
                          data = final_dataset_stack)
 
 coef(mavg_gam_update)
@@ -1657,37 +1675,98 @@ summary.gam(mclose_gam_update)
 summary.gam(mopen_gam_update)
 
 
-sink(file = NULL)
-
-
-
 gam.check(mavg_gam_update)
 gam.check(mopen_gam_update)
 gam.check(mclose_gam_update)
 
-plot(mavg_gam_update)
+plot(mavg_gam_update, residuals = TRUE, pch = 1)
 
-sink()
+visreg(mavg_gam_update, "avg_cents", xlab = "Average Cents", 
+       ylab = "Total Spending", title = "" , gg= TRUE)
+  
 
-gam_models <- list(
-  "Close Price Model" = gam(totspend ~ s(close_cents, k = 30) + s(pvi_towards_candidate) +
-                              party + incumbent,  
-                            data = final_dataset_stack),
-  "Open Price Model" = gam(totspend ~ s(open_cents) + s(pvi_towards_candidate) +
-                             party + incumbent, 
-                           data = final_dataset_stack),
-  "Average Price Model" = gam(totspend ~ s(avg_cents) + s(pvi_towards_candidate) +
-                                party + incumbent, 
-                              data = final_dataset_stack))
+#### ADD COOK RATING ####
 
-
-
-stargazer(gam_models, type = "html",
-         title = "Table 1" ,out = "gam_models.html")
+# Code so that 1- toss up, 2- lean, 3- likely
+# do positive and negative in the same way as COOK PVI
 
 
 
 
+
+
+
+lin_model_for_fun <- lm(totspend ~ avg_cents + I(avg_cents^2) + pvi_towards_candidate +
+                          I(pvi_towards_candidate^2) + party + incumbent + year_binary + 
+                          l_cook_rating + I(l_cook_rating^2), 
+                        data = final_dataset_stack)
+summary(lin_model_for_fun)
+
+
+plot(lin_model_for_fun)
+
+
+?summary.gam
+
+
+# gam_models <- list(
+#   "Close Price Model" = gam(totspend ~ s(close_cents, k = 30) + s(pvi_towards_candidate) +
+#                               party + incumbent + Year,  
+#                             data = final_dataset_stack),
+#   "Open Price Model" = gam(totspend ~ s(open_cents) + s(pvi_towards_candidate) +
+#                              party + incumbent+ Year, 
+#                            data = final_dataset_stack),
+#   "Average Price Model" = gam(totspend ~ s(avg_cents) + s(pvi_towards_candidate) +
+#                                 party + incumbent+ Year, 
+#                               data = final_dataset_stack))
+# 
+
+??gamtabs()
+
+gamtabs(mavg_gam_update, label = 'Table 1')
+
+
+gamtabs(mopen_gam_update, label = 'Table 1')
+
+
+gamtabs(mclose_gam_update, label = 'Table 1')
+
+
+
+
+
+extract_eq(mopen_gam_update)
+
+
+
+head(final_dataset_stack)
+
+final_dataset_stack$open_cents
+
+
+stargazer(as.data.frame(final_dataset_stack[c("open_cents", "avg_cents", 
+                                              "close_cents", 
+                                "totspend")]), type = "html", 
+          out = "sum_stats_4.html")
+
+
+summary(final_dataset_stack)
+
+
+final_dataset_stack %>% 
+  summarize("Mean Opening Price (Cents)" = mean(open_cents),
+            "SD Opening Price (Cents)" = sd(open_cents),
+            "Mean Average Price (Cents)" = mean(avg_cents),
+            "SD Average Price (Cents)" = sd(avg_cents),
+            "Mean Closing Price (Cents)" = mean(close_cents),
+            "SD Closing Price (Cents)" = sd(close_cents),
+            "Mean Total Spending" = mean(totspend),
+            "SD Total Spending" = sd(totspend)) %>% 
+  knitr::kable(format = "latex")
+
+citation("tidyverse")
+citation("mgcv")
+citation("stargazer")
 
 
 
